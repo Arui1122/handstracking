@@ -1,0 +1,71 @@
+"""
+Hands Tracking Module
+By: Dongrui
+
+"""
+import cv2
+import mediapipe as mp
+import time
+
+
+class handDetector:
+    def __init__(self, mode=False, maxHands=2, detectionCon=int(0.5), trackCon=0.5):
+
+        self.results = None
+        self.mode = mode
+        self.maxHands = maxHands
+        self.detectionCon = detectionCon    # detection confidence
+        self.trackCon = trackCon            # track confidence
+        self.mpHands = mp.solutions.hands
+        self.hands = self.mpHands.Hands(self.mode, self.maxHands,
+                                        self.detectionCon, self.trackCon)
+        self.mpDraw = mp.solutions.drawing_utils
+        # 自定義點跟線的規格
+        self.handsLmsStyle = self.mpDraw.DrawingSpec(color=(0, 0, 255), thickness=5)
+        self.handsConStyle = self.mpDraw.DrawingSpec(color=(0, 255, 0), thickness=5)
+
+    def findHands(self, img, draw=True):
+        imgRGB = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)   # 因為opencv讀取的圖片都是BGR，但mp需要的是RGB
+        self.results = self.hands.process(imgRGB)
+        if self.results.multi_hand_landmarks:
+            for handLms in self.results.multi_hand_landmarks:   # 把偵測到的手畫出來
+                if draw:
+                    self.mpDraw.draw_landmarks(img, handLms, self.mpHands.HAND_CONNECTIONS,
+                                               self.handsLmsStyle, self.handsConStyle)
+        return img
+
+    def findPosition(self, img, handNo=0, draw=True):
+        lmList = []
+        if self.results.multi_hand_landmarks:
+            myHand = self.results.multi_hand_landmarks[handNo]
+            for i, lm in enumerate(myHand.landmark):
+                h, w, c = img.shape
+                cx, cy = int(lm.x * w), int(lm.y * h)    # 因為預設點座標是比例，所以乘上原圖的長寬
+                lmList.append([i, cx, cy])
+                # if draw:
+                #     cv2.circle(img, (cx, cy), 5, (0, 255, 0), cv2.FILLED)
+        return lmList
+
+
+def main():
+    pTime = 0
+    cTime = 0
+    cap = cv2.VideoCapture(0)
+    detector = handDetector()
+    while True:
+        success, img = cap.read()
+        img = detector.findHands(img)
+        lmList = detector.findPosition(img)
+        # if len(lmList) != 0:
+        #     print(lmList)
+        cTime = time.time()
+        fps = 1 / (cTime - pTime)
+        pTime = cTime
+        cv2.putText(img, str(int(fps)), (10, 70), cv2.FONT_HERSHEY_PLAIN, 3,
+                    (255, 0, 0), 3)
+        cv2.imshow("Image", img)
+        cv2.waitKey(1)
+
+
+if __name__ == "__main__":
+    main()
