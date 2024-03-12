@@ -1,1 +1,1 @@
-# handstracking
+# OpenCV  # MediaPipe
